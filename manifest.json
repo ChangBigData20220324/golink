@@ -1,0 +1,9 @@
+{
+	"id": "golink",
+	"name": "golink",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "obsidian outlink with goboard",
+	"author": "eric_chang",
+	"isDesktopOnly": false
+}
