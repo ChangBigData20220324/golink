@@ -40,6 +40,7 @@ class SGFRenderer {
     private cellSize: number = 48;
     private app: any;
     private isWindowPinned: boolean = false;
+    private pinnedCoord: string | null = null;
     private linkStatsCache: Map<string, number> = new Map();
 
     constructor(container: HTMLElement, sgfContent: string, app?: any) {
@@ -322,26 +323,36 @@ class SGFRenderer {
         this.addLinkBadge(hitArea, coord, color);
 
         hitArea.addEventListener('mouseenter', () => {
+            if (this.isWindowPinned) return;
             this.applyHoverEffect(stone, color);
-            if (!this.isWindowPinned) {
-                this.showStonePanel(coord, color, false);
-            }
+            this.showStonePanel(coord, color, false);
         });
 
         hitArea.addEventListener('mouseleave', () => {
-            if (!this.isWindowPinned) {
-                this.removeHoverEffect(stone, color);
-                const panel = this.container.querySelector('.sgf-stone-panel');
-                if (panel) panel.remove();
-            }
+            if (this.isWindowPinned) return;
+            this.removeHoverEffect(stone, color);
+            const panel = this.container.querySelector('.sgf-stone-panel');
+            if (panel) panel.remove();
         });
 
         stone.addEventListener('click', (e) => {
             e.stopPropagation();
+            this.clearPinnedStone();
             this.isWindowPinned = true;
+            this.pinnedCoord = coord;
             this.applyHoverEffect(stone, color);
             this.showStonePanel(coord, color, true);
         });
+    }
+
+    private clearPinnedStone(): void {
+        if (this.pinnedCoord) {
+            const oldStoneEl = this.container.querySelector(`[data-coord="${this.pinnedCoord}"] .sgf-stone`) as HTMLElement;
+            if (oldStoneEl) {
+                const oldColor = this.stones.get(this.pinnedCoord);
+                if (oldColor) this.removeHoverEffect(oldStoneEl, oldColor);
+            }
+        }
     }
 
     private async addLinkBadge(hitArea: HTMLElement, coord: string, color: 'black' | 'white'): Promise<void> {
@@ -428,7 +439,6 @@ class SGFRenderer {
         }
     }
 
-    // ✅ 改进版：遍历所有文件，处理任意路径
     private async readFileContent(linkName: string): Promise<string> {
         try {
             const cleanLinkName = linkName.trim();
@@ -440,7 +450,6 @@ class SGFRenderer {
 
             console.log(`🔍 开始搜索文件: "${cleanLinkName}"`);
 
-            // 方法 1: 直接路径尝试
             const directPaths = [
                 `${cleanLinkName}.md`,
                 `${cleanLinkName.toLowerCase()}.md`,
@@ -461,7 +470,6 @@ class SGFRenderer {
                 }
             }
 
-            // 方法 2: 遍历所有文件，精确匹配
             console.log(`🔍 直接路径未找到，开始全库搜索...`);
             const allFiles = this.app.vault.getFiles();
             
@@ -486,7 +494,6 @@ class SGFRenderer {
         }
     }
 
-    // ✅ 改进版：更强大的链接识别
     private countInternalLinks(content: string): number {
         if (!content || content.length === 0) {
             console.warn(`⚠️  内容为空`);
@@ -723,7 +730,9 @@ class SGFRenderer {
             `;
             closeBtn.addEventListener('click', () => {
                 panelContainer.remove();
+                this.clearPinnedStone();
                 this.isWindowPinned = false;
+                this.pinnedCoord = null;
             });
         }
 
